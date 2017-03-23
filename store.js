@@ -72,5 +72,69 @@ async.waterfall([
 
 }
 
+var follow_user_save=function(_uid){
+  var docClient = new AWS.DynamoDB.DocumentClient();
+  var table = "twohandgame_follow_user"; 
+  var params = {
+      TableName:table,
+      Item:{
+          "line_uid": _uid
+      }
+  };
+  docClient.put(params, function(err, data) {
+      if (err) {
+          console.error("Unable to add item. Error JSON:", JSON.stringify(err, null, 2));
+      } else {
+
+      }
+  });
+}
+
+var unfollow_user_save=function(_uid){
+  var docClient = new AWS.DynamoDB.DocumentClient();
+  var table = "twohandgame_follow_user"; 
+  var params = {
+      TableName:table,
+    Key:{
+        "line_uid":_uid
+    },
+    ConditionExpression:"line_uid=:val",
+    ExpressionAttributeValues: {
+        ":val": _uid
+    }
+  };
+  docClient.delete(params, function(err, data) {
+      if (err) {
+          console.error("Unable to add item. Error JSON:", JSON.stringify(err, null, 2));
+      } else {
+
+      }
+  });
+}
+
+var get_follow_users=function(_cb){
+  var docClient = new AWS.DynamoDB.DocumentClient();
+  var users=[];
+  var params = {
+      TableName : "twohandgame_follow_user"
+  };
+
+  docClient.scan(params, function(err, data) {
+    if (err) {
+        console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+    }else{
+        console.log("Query succeeded.");
+        data.Items.forEach(function(item) {   
+            users.push(item.line_uid)
+        });
+        _cb(users) 
+    }
+});
+}
+
+
+module.exports.get_follow_users=get_follow_users
+module.exports.unfollow_user_save = unfollow_user_save;
+module.exports.follow_user_save = follow_user_save;
 module.exports.ptt_save = ptt_save;
 module.exports.get_ptt_last = get_ptt_last;

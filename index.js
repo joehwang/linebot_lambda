@@ -1,13 +1,27 @@
-
-
 /*
-aws lambda update-function-code \
---region ap-northeast-1 \
---function-name linebot_lambda \
---zip-file fileb://linebot.zip
+aws api gateway的event
+
+2017-03-23T09:52:20.548Z  67bdaf84-0fae-11e7-903b-e132ac4c3c0d  { events: 
+[ { type: 'message',
+replyToken: '92df944fda6340a89b490bf5e9611e9d',
+source: [Object],
+timestamp: 1490262739664,
+message: [Object] } ] }
+
+Cloud watch的Scheduled Event:
+2017-03-23T10:00:32.779Z  8d7d6ce5-0faf-11e7-9d6d-27e17e1daa67  { version: '0',
+id: '2d6fd254-2a7d-4528-bfb6-c5c978f55d42',
+'detail-type': 'Scheduled Event',
+source: 'aws.events',
+account: '620620376044',
+time: '2017-03-23T09:59:51Z',
+region: 'ap-northeast-1',
+resources: [ 'arn:aws:events:ap-northeast-1:620620376044:rule/every_5min_call_linebot' ],
+detail: {} }
+
 */
 
-//bot.push("U09b928f3b6fafb9fe1b4f0ef937196df","aaffff")
+
 
 
 /*
@@ -36,7 +50,33 @@ exports.handler = (event, context, callback) => {
     console.log(data);
  });
  */
-  
+console.log(event)
+console.log(context)
+
+var bot = linebot({
+  channelId: "1506585287",
+  channelSecret: "a2be6b188a01a956bbdb20c969534b03",
+  channelAccessToken: "3afONr+SdMrMF6wqpK9QPIliDsyynhIpc9+LEhSX3NzsE9IPNqUgVTDrHxCXbl1v29Wko9VZhvuvHF4z8ywIQHX43fBXHcMOR1xGAta08l+IiPixFGL1e3IENwD/BxMIrxMjg6KqDSFB5DrToBEhhAdB04t89/1O/w1cDnyilFU="
+});
+
+
+if (event.hasOwnProperty("events")) {
+  var replytoken=event["events"][0].replyToken
+  var msg=event["events"][0].message["text"]
+  var uid=event.events[0].source["userId"]
+  if (msg.match(/^訂閱/)) {
+    store.follow_user_save(uid);
+    bot.reply(replytoken,[{ type: 'text', text: '訂閱成功!' }])
+  }
+  if (msg.match(/^取消訂閱/)) {
+    store.unfollow_user_save(uid);
+    bot.reply(replytoken,[{ type: 'text', text: '已取消訂閱!' }])
+  }
+  console.log(replytoken+"@"+msg+"@"  +uid)
+  console.log("對話")
+}else{
+//跑通知
+
 async.waterfall([
   function get_previous_data(next){
     //從db取得舊資料
@@ -79,23 +119,25 @@ async.waterfall([
       });      
     })
   },
-  function send_notice(noticeary,next){
-     var bot = linebot({
-      channelId: "1506585287",
-      channelSecret: "a2be6b188a01a956bbdb20c969534b03",
-      channelAccessToken: "3afONr+SdMrMF6wqpK9QPIliDsyynhIpc9+LEhSX3NzsE9IPNqUgVTDrHxCXbl1v29Wko9VZhvuvHF4z8ywIQHX43fBXHcMOR1xGAta08l+IiPixFGL1e3IENwD/BxMIrxMjg6KqDSFB5DrToBEhhAdB04t89/1O/w1cDnyilFU="
-     });
+  function get_follow_user(noticeary,next){
+    store.get_follow_users(function(user){     
+      console.log("get_follow_user")
+      next(null,{users:user,messages:noticeary})
+    })
+  },
+  function send_notice(noticeobj,next){
      var line_msg_format=[];
      line_msg_format.push({"type":"text","text":"PTT二手交易版有新片囉!"});
-     for (var i = noticeary.length - 1; i >= 0; i--) {
+     for (var i = noticeobj["messages"].length - 1; i >= 0; i--) {
        var msg={}
        msg["type"]="text"
-       msg["text"]=noticeary[i]["data"]+" https://www.ptt.cc"+noticeary[i]["href"]
+       msg["text"]=noticeobj["messages"][i]["data"]+" https://www.ptt.cc"+noticeobj["messages"][i]["href"]
        line_msg_format.push(msg);
      }
      //有訊息才發
+
      if (line_msg_format.length>1) {
-        bot.push("U09b928f3b6fafb9fe1b4f0ef937196df",line_msg_format) 
+        bot.multicast(noticeobj["users"],line_msg_format) 
      }     
      next(null,"ok")
     }  
@@ -108,6 +150,8 @@ async.waterfall([
   console.log("完畢")
   callback(null, 'done');
 })
+
+}//if 結束
 /*
  var games=ptt.crawl(function(err,data){
   console.log(data);
