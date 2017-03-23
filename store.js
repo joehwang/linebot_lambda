@@ -9,7 +9,7 @@ AWS.config.update({
 });
 */
   var docClient = new AWS.DynamoDB.DocumentClient();
-  var table = "twohandgame";
+  var table = "twohandgame_last_update";
   var region = "ptt";  
   var params = {
       TableName:table,
@@ -27,9 +27,35 @@ AWS.config.update({
           console.error("Unable to add item. Error JSON:", JSON.stringify(err, null, 2));
       } else {
         
-          console.log("Added item:", JSON.stringify(data, null, 2));
+          //console.log("Added item:", JSON.stringify(data, null, 2));
       }
   });
+}
+var get_ptt_last=function(_cb){
+  var docClient = new AWS.DynamoDB.DocumentClient();
+  var last_items=[];
+  var params = {
+      TableName : "twohandgame_last_update",
+      KeyConditionExpression: "#region= :local",     
+      ExpressionAttributeNames:{"#region": "region"},
+      ExpressionAttributeValues: {":local":"ptt"},
+      ScanIndexForward: false
+  };
+
+  docClient.query(params, function(err, data) {
+    if (err) {
+        console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+    }else{
+        console.log("Query succeeded.");
+        data.Items.forEach(function(item) {
+           // var ptt_item={};
+            last_items[item.name]="previous data"
+            //last_items.push(ptt_item)
+            //console.log(" -", item.name+ ": " + item.seq);
+        });
+        _cb(last_items) 
+    }
+});
 }
 var ptt_save= function(_saveitem,cb) {
 async.waterfall([
@@ -47,3 +73,4 @@ async.waterfall([
 }
 
 module.exports.ptt_save = ptt_save;
+module.exports.get_ptt_last = get_ptt_last;
